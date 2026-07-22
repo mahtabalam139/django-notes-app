@@ -1,0 +1,41 @@
+pipeline {
+    agent { label 'slave' }
+    stages {
+        stage('Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/mahtabalam139/django-notes-app.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'docker build -t notes-app:latest .'
+            }
+        }
+        stage('Push to DockerHub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerHubCred',
+                        usernameVariable: 'dockerhubUser',
+                        passwordVariable: 'dockerHubPass'
+                    )
+                ]) {
+                    sh '''
+                    echo "$dockerHubPass" | docker login -u "$dockerhubUser" --password-stdin
+                    docker tag notes-app:latest mahtabalam716/notes-app:latest
+                    docker push mahtabalam716/notes-app:latest
+                    '''
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh '''
+                docker compose down || true
+                docker compose up -d --build
+                '''
+            }
+        }
+    }
+}
